@@ -5,6 +5,9 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+require('dotenv').config();
 
 // Initialize express app
 const app = express();
@@ -16,21 +19,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function(req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+// Configure Cloudinary storage for multer
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'product-images',
+        allowed_formats: ['jpeg', 'jpg', 'png', 'gif']
     }
 });
 
@@ -50,13 +51,7 @@ const upload = multer({
     }
 });
 
-// Connect to MongoDB Atlas - Replace with your actual connection string
-// Update the MongoDB connection part in server.js:
-require('dotenv').config();
-
-// ...rest of the server.js code...
-
-// Use the connection string from .env file
+// Connect to MongoDB Atlas
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
     console.error('MONGODB_URI is not defined in .env file');
@@ -73,8 +68,6 @@ mongoose.connect(MONGODB_URI, {
         process.exit(1);
     });
 
-// ...rest of the server.js code...
-
 // Product Schema and Model
 const productSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -82,6 +75,7 @@ const productSchema = new mongoose.Schema({
     category: { type: String, required: true },
     description: { type: String },
     imageUrl: { type: String },
+    publicId: { type: String }, // To store Cloudinary public_id for deletions
     inStock: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
@@ -132,13 +126,24 @@ app.post('/api/products', upload.single('image'), async(req, res) => {
     try {
         const { name, price, category, description, inStock } = req.body;
 
+        // Default image URL in case no image is uploaded
+        let imageUrl = 'https://res.cloudinary.com/' + process.env.CLOUDINARY_CLOUD_NAME + '/image/upload/v1/product-images/default-product.jpg';
+        let publicId = null;
+
+        // If file was uploaded, use its URL
+        if (req.file) {
+            imageUrl = req.file.path;
+            publicId = req.file.filename;
+        }
+
         const newProduct = new Product({
             name,
             price,
             category,
             description,
             inStock: inStock === 'true',
-            imageUrl: req.file ? `/uploads/${req.file.filename}` : '/uploads/default-product.jpg'
+            imageUrl,
+            publicId
         });
 
         const savedProduct = await newProduct.save();
@@ -153,6 +158,11 @@ app.post('/api/products', upload.single('image'), async(req, res) => {
 app.put('/api/products/:id', upload.single('image'), async(req, res) => {
     try {
         const { name, price, category, description, inStock } = req.body;
+        const product = await Product.findById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
 
         const updateData = {
             name,
@@ -164,15 +174,12 @@ app.put('/api/products/:id', upload.single('image'), async(req, res) => {
 
         // Only update image if a new one is uploaded
         if (req.file) {
-            updateData.imageUrl = `/uploads/${req.file.filename}`;
+            updateData.imageUrl = req.file.path;
+            updateData.publicId = req.file.filename;
 
-            // Delete old image if it exists and is not the default
-            const product = await Product.findById(req.params.id);
-            if (product && product.imageUrl && !product.imageUrl.includes('default-product.jpg')) {
-                const oldImagePath = path.join(__dirname, 'public', product.imageUrl);
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                }
+            // Delete old image from Cloudinary if it exists and is not the default
+            if (product.publicId) {
+                await cloudinary.uploader.destroy(product.publicId);
             }
         }
 
@@ -180,10 +187,6 @@ app.put('/api/products/:id', upload.single('image'), async(req, res) => {
             req.params.id,
             updateData, { new: true }
         );
-
-        if (!updatedProduct) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
 
         res.json(updatedProduct);
     } catch (error) {
@@ -201,12 +204,9 @@ app.delete('/api/products/:id', async(req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Delete product image if it's not the default
-        if (product.imageUrl && !product.imageUrl.includes('default-product.jpg')) {
-            const imagePath = path.join(__dirname, 'public', product.imageUrl);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-            }
+        // Delete product image from Cloudinary if it exists and is not the default
+        if (product.publicId) {
+            await cloudinary.uploader.destroy(product.publicId);
         }
 
         await Product.findByIdAndDelete(req.params.id);
