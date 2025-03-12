@@ -1005,15 +1005,23 @@
         </div>
     </footer>
 
+    <!-- Image Modal -->
+    <div id="image-modal" class="image-modal">
+        <span class="close-image-modal">&times;</span>
+        <img id="modal-image" class="modal-image-content">
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // API base URL
+            // API base URL - updated to match server.js
             const API_BASE_URL = '/api';
-
 
             // DOM elements
             const productGrid = document.getElementById('product-grid');
             const filterButtons = document.querySelectorAll('.filter-btn');
+            const imageModal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            const closeImageModal = document.querySelector('.close-image-modal');
 
             // Initialize
             fetchProducts();
@@ -1069,7 +1077,6 @@
             }
 
             // Display products in the grid
-            // Display products in the grid
             function displayProducts(products) {
                 // Clear previous content
                 productGrid.innerHTML = '';
@@ -1086,23 +1093,23 @@
                     const productCard = document.createElement('div');
                     productCard.className = 'product-card fade-in';
                     productCard.innerHTML = `
-            <div class="product-image">
-                <img src="${product.imageUrl}" alt="${product.name}" 
-                     onerror="this.src='/uploads/default-product.jpg'">
-            </div>
-            <div class="product-info">
-                <h3>${product.name}</h3>
-                <div class="product-price">GH₵${product.price.toFixed(2)}</div>
-                <div class="contact-btn">
-                    <a href="https://wa.me/233244414709?text=I'm%20interested%20in%20${encodeURIComponent(product.name)}" class="whatsapp-btn" target="_blank">
-                        <i class="fab fa-whatsapp"></i> WhatsApp
-                    </a>
-                    <a href="tel:+233244414709" class="call-btn">
-                        <i class="fas fa-phone"></i> Call
-                    </a>
-                </div>
-            </div>
-        `;
+                        <div class="product-image">
+                            <img src="${product.imageUrl}" alt="${product.name}" 
+                                onerror="this.src='https://res.cloudinary.com/${product.cloud_name || 'your_cloud_name'}/image/upload/v1/product-images/default-product.jpg'">
+                        </div>
+                        <div class="product-info">
+                            <h3>${product.name}</h3>
+                            <div class="product-price">GH₵${product.price.toFixed(2)}</div>
+                            <div class="contact-btn">
+                                <a href="https://wa.me/233244414709?text=I'm%20interested%20in%20${encodeURIComponent(product.name)}" class="whatsapp-btn" target="_blank">
+                                    <i class="fab fa-whatsapp"></i> WhatsApp
+                                </a>
+                                <a href="tel:+233244414709" class="call-btn">
+                                    <i class="fas fa-phone"></i> Call
+                                </a>
+                            </div>
+                        </div>
+                    `;
                     productGrid.appendChild(productCard);
 
                     // Add click event to the product image
@@ -1119,6 +1126,23 @@
                 });
             }
 
+            // Open image modal
+            function openImageModal(imageSrc) {
+                modalImage.src = imageSrc;
+                imageModal.style.display = 'flex';
+            }
+
+            // Close image modal
+            closeImageModal.addEventListener('click', function() {
+                imageModal.style.display = 'none';
+            });
+
+            // Close modal when clicking outside of it
+            window.addEventListener('click', function(event) {
+                if (event.target === imageModal) {
+                    imageModal.style.display = 'none';
+                }
+            });
 
             // Show loading indicator
             function showLoading() {
@@ -1132,5 +1156,3 @@
         });
     </script>
 </body>
-
-</html>
