@@ -889,10 +889,10 @@
         </footer>
     </section>
 
-    <div id="imageModal" class="modal">
+    <div id="image-modal" class="modal">
         <div class="modal-content">
-            <div class="modal-close" id="modalClose">&times;</div>
-            <img id="modalImage" src="" alt="Product Image">
+            <div class="modal-close">&times;</div>
+            <img id="modal-image" src="" alt="Product Image">
         </div>
     </div>
 
@@ -904,9 +904,6 @@
             // DOM elements
             const productGrid = document.getElementById('product-grid');
             const filterButtons = document.querySelectorAll('.filter-btn');
-            const imageModal = document.getElementById('image-modal');
-            const modalImage = document.getElementById('modal-image');
-            const modalClose = document.querySelector('.modal-close');
 
             // Initialize
             fetchProducts();
@@ -978,20 +975,20 @@
                     const productCard = document.createElement('div');
                     productCard.className = 'product-card';
                     productCard.innerHTML = `
-                    <div class="product-image">
-                        <img src="${product.imageUrl}" alt="${product.name}" 
-                            onerror="this.src='https://via.placeholder.com/300x300?text=Product+Image'">
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-name">${product.name}</h3>
-                        <div class="product-price">GH₵${product.price.toFixed(2)}</div>
-                        <div class="contact-btn">
-                            <a href="https://wa.me/233244414709?text=I'm%20interested%20in%20${encodeURIComponent(product.name)}" class="whatsapp-btn" target="_blank">
-                                <i class="fab fa-whatsapp"></i> Order
-                            </a>
+                        <div class="product-image">
+                            <img src="${product.imageUrl}" alt="${product.name}" 
+                                onerror="this.src='https://via.placeholder.com/300x300?text=Product+Image'">
                         </div>
-                    </div>
-                `;
+                        <div class="product-info">
+                            <h3 class="product-name">${product.name}</h3>
+                            <div class="product-price">GH₵${product.price.toFixed(2)}</div>
+                            <div class="contact-btn">
+                                <a href="https://wa.me/233244414709?text=I'm%20interested%20in%20${encodeURIComponent(product.name)}" class="whatsapp-btn" target="_blank">
+                                    <i class="fab fa-whatsapp"></i> Order
+                                </a>
+                            </div>
+                        </div>
+                    `;
                     productGrid.appendChild(productCard);
 
                     // Add click event to the product image
@@ -1004,26 +1001,31 @@
 
             // Open image modal with proper sizing
             function openImageModal(imageSrc) {
-                modalImage.src = imageSrc;
-                imageModal.style.display = 'flex';
+                const modal = document.getElementById('image-modal');
+                const modalImg = document.getElementById('modal-image');
+
+                modal.style.display = 'flex';
+                modalImg.src = imageSrc;
                 document.body.style.overflow = 'hidden';
 
                 // Ensure image fits nicely on mobile
-                modalImage.style.maxWidth = '90%';
-                modalImage.style.maxHeight = '90%';
-                modalImage.style.objectFit = 'contain';
+                modalImg.style.maxWidth = '90%';
+                modalImg.style.maxHeight = '90%';
+                modalImg.style.objectFit = 'contain';
             }
 
             // Close image modal
-            modalClose.addEventListener('click', function() {
-                imageModal.style.display = 'none';
+            document.querySelector('.modal-close').addEventListener('click', function() {
+                const modal = document.getElementById('image-modal');
+                modal.style.display = 'none';
                 document.body.style.overflow = 'auto';
             });
 
             // Close modal when clicking outside of it
             window.addEventListener('click', function(event) {
-                if (event.target === imageModal) {
-                    imageModal.style.display = 'none';
+                const modal = document.getElementById('image-modal');
+                if (event.target === modal) {
+                    modal.style.display = 'none';
                     document.body.style.overflow = 'auto';
                 }
             });
